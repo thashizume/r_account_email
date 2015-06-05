@@ -9,11 +9,63 @@
 
         _d2t.dt2tsv(_sendList, "sendlist.txt")
 
+        For Each row As System.Data.DataRow In _sendList.Rows
+
+            Call sendAccountInfoMail(row(2), row(4), row(3))
+
+        Next
+
+    End Sub
+
+    Public Sub sendAccountInfoMail(toName As String, attacheFile As String, email As String, Optional isDebug As Boolean = True)
+
+        ' https://support.microsoft.com/ja-jp/kb/313803/ja
 
 
+        ' Create an Outlook application.
+        Dim _outlook As Microsoft.Office.Interop.Outlook.Application
+        _outlook = New Microsoft.Office.Interop.Outlook.Application
+
+        ' Create a new MailItem.
+        Dim _Message As Microsoft.Office.Interop.Outlook.MailItem
+        _Message = _outlook.CreateItem(Microsoft.Office.Interop.Outlook.OlItemType.olMailItem)
+        _Message.Subject = "Send Attachment Using OOM in Visual Basic .NET"
+        _Message.Body = "Hello World" & vbCr & vbCr
+
+        ' TODO: Replace with a valid e-mail address.
+        _Message.To = email
+        _Message.CC = ""
+
+        Dim _configFile As System.IO.FileInfo = New System.IO.FileInfo(attacheFile)
+        Dim FileSource_1 As String = _configFile.FullName
+        Dim FileDisp_1 As String = _configFile.Name
+
+        Dim _manfile = New System.IO.FileInfo("master\Cworks物件管理.pdf")
+        Dim FileSource_2 As String = _manfile.FullName
+        Dim FileDisp_2 As String = _manfile.Name
+
+        _Message.Attachments.Add(FileSource_1, , , FileDisp_1)
+        _Message.Attachments.Add(FileSource_2, , , FileDisp_2)
+
+        ' Send
+        If isDebug Then
+            _Message.SaveAs("C:\Users\toshi\Documents\GitHub\R_AccountAnnouceEMail\r_account_email\bin\Debug\Mail\" & toName & ".msg", Microsoft.Office.Interop.Outlook.OlItemType.olMailItem)
+            _Message.Close(False)
+        Else
+            _Message.Send()
+        End If
+
+        ' Clean up
+        _outlook = Nothing
+        _Message = Nothing
+
+    End Sub
+
+    Public Sub sendPasswordMail(toName As String, attacheFile As String, email As String, Optional isDebug As Boolean = True)
 
 
     End Sub
+
 
     Public Function createAccountInfoFile(_dt As System.Data.DataTable, templateFile As String, outputDirectory As String, password As String) As System.Data.DataTable
         Dim result As System.Data.DataTable = New System.Data.DataTable("SEND_LIST")
