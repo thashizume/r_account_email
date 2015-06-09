@@ -1,4 +1,22 @@
-﻿Module createAccountInfoFile
+﻿''' <summary>
+''' SCPファイル共有サービスの移行に伴い、新サーバを利用してもらうための
+''' アカウント情報をメールで送信するユーティリティである。
+''' 
+''' 機能
+''' １．移行対象のアカウントをアカウント台帳よりロードする（Excel）
+''' ２．アカウント設定書毎を作成する。この設定書は新サーバのアカウントとパスワードを記している（Excel）。このファイルにもパスワードを設定する
+''' ３．アカウント毎にメールを送信する。メールには以下の添付ファイルを含める
+''' 　　・新サーバ利用するための手順書
+''' 　　・アカウント設定書
+''' ４．アカウント毎にアカウント設定書のパスワードを記したメールを送信する
+''' 
+''' 機能より必要な外部ファイル。ならいびに外部ファイルに必要な情報
+''' ・アカウント台帳
+''' ・アカウント設定書のテンプレート
+''' ・
+''' </summary>
+''' <remarks></remarks>
+Module createAccountInfoFile
 
     Public Sub main()
 
@@ -10,17 +28,25 @@
         _d2t.dt2tsv(_sendList, "sendlist.txt")
 
         For Each row As System.Data.DataRow In _sendList.Rows
+            If row(2).ToString.Length > 0 And row(3).ToString.Length > 0 And row(4).ToString.Length > 0 Then
 
-            Call sendAccountInfoMail(row(2), row(4), row(3))
+                Call sendAccountInfoMail(row(2), row(4), row(3))
+                Call sendPasswordMail(row(2), row(3))
+                ' wait
+                System.Threading.Thread.Sleep(1000)
+                Console.WriteLine("send email [" & row(2).ToString & "]" & vbTab & row(3).ToString)
+            Else
+                Console.WriteLine("send skip email [" & row(2).ToString & "]" & vbTab & row(3).ToString)
+
+            End If
 
         Next
 
     End Sub
 
-    Public Sub sendAccountInfoMail(toName As String, attacheFile As String, email As String, Optional isDebug As Boolean = True)
+    Public Sub sendAccountInfoMail(toName As String, attacheFile As String, email As String)
 
         ' https://support.microsoft.com/ja-jp/kb/313803/ja
-
 
         ' Create an Outlook application.
         Dim _outlook As Microsoft.Office.Interop.Outlook.Application
@@ -29,12 +55,16 @@
         ' Create a new MailItem.
         Dim _Message As Microsoft.Office.Interop.Outlook.MailItem
         _Message = _outlook.CreateItem(Microsoft.Office.Interop.Outlook.OlItemType.olMailItem)
-        _Message.Subject = "Send Attachment Using OOM in Visual Basic .NET"
-        _Message.Body = "Hello World" & vbCr & vbCr
+        _Message.Subject = "【HOGE】アカウント発送のご案内"
 
         ' TODO: Replace with a valid e-mail address.
         _Message.To = email
         _Message.CC = ""
+
+        Dim _rst As System.IO.StreamReader = New System.IO.StreamReader("template\MailBody01.txt", System.Text.Encoding.UTF8)
+        _Message.Body = _rst.ReadToEnd
+        _Message.Body = _Message.Body.Replace("___NAME___", toName)
+        _Message.Body = _Message.Body & vbCrLf & vbCrLf
 
         Dim _configFile As System.IO.FileInfo = New System.IO.FileInfo(attacheFile)
         Dim FileSource_1 As String = _configFile.FullName
@@ -48,12 +78,7 @@
         _Message.Attachments.Add(FileSource_2, , , FileDisp_2)
 
         ' Send
-        If isDebug Then
-            _Message.SaveAs("C:\Users\toshi\Documents\GitHub\R_AccountAnnouceEMail\r_account_email\bin\Debug\Mail\" & toName & ".msg", Microsoft.Office.Interop.Outlook.OlItemType.olMailItem)
-            _Message.Close(False)
-        Else
-            _Message.Send()
-        End If
+        _Message.Send()
 
         ' Clean up
         _outlook = Nothing
@@ -61,7 +86,36 @@
 
     End Sub
 
-    Public Sub sendPasswordMail(toName As String, attacheFile As String, email As String, Optional isDebug As Boolean = True)
+    Public Sub sendPasswordMail(toName As String, email As String)
+
+
+        ' https://support.microsoft.com/ja-jp/kb/313803/ja
+
+        ' Create an Outlook application.
+        Dim _outlook As Microsoft.Office.Interop.Outlook.Application
+        _outlook = New Microsoft.Office.Interop.Outlook.Application
+
+        ' Create a new MailItem.
+        Dim _Message As Microsoft.Office.Interop.Outlook.MailItem
+        _Message = _outlook.CreateItem(Microsoft.Office.Interop.Outlook.OlItemType.olMailItem)
+        _Message.Subject = "【HOGE】パスワードのご案内"
+
+        ' TODO: Replace with a valid e-mail address.
+        _Message.To = email
+        _Message.CC = ""
+
+        Dim _rst As System.IO.StreamReader = New System.IO.StreamReader("template\MailBody02.txt", System.Text.Encoding.UTF8)
+        _Message.Body = _rst.ReadToEnd
+        _Message.Body = _Message.Body.Replace("___NAME___", toName)
+        _Message.Body = _Message.Body & vbCrLf & vbCrLf
+
+        ' Send
+        _Message.Send()
+
+        ' Clean up
+        _outlook = Nothing
+        _Message = Nothing
+
 
 
     End Sub
@@ -123,9 +177,15 @@
                 row("ATTACH_FILE") = fileName
                 _wb.Close()
 
+                Console.WriteLine("create attach file " & _row(1) & vbTab & _row(2))
+
+
             Catch ex As Exception
 
                 row("ATTACH_FILE") = String.Empty
+                Console.WriteLine("*********************************************************************")
+                Console.WriteLine("exception attach file " & _row(1) & vbTab & _row(2))
+                Console.WriteLine(ex.ToString)
             Finally
                 _wb = Nothing
                 _wbs = Nothing
